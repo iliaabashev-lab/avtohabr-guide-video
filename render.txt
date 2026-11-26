@@ -1,7 +1,1 @@
-stills
-at=84
-at=254
-at=365
-at=487
-at=546
-at=576
+video
