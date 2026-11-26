@@ -1,0 +1,42 @@
+# Рендер ролика в облаке GitHub (ПК владельца не рендерит).
+# render.txt: "stills" — пробные кадры, "video" — весь ролик. Результат — артефакт запуска.
+name: render
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: render
+  cancel-in-progress: true
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet numpy && npm install --no-audit --no-fund
+      - run: npx tsc --noEmit
+      - run: python music.py public/music.wav 720
+      - name: Кадры или ролик
+        if: ${{ hashFiles('render.txt') != '' }}
+        run: |
+          mkdir -p out
+          if grep -q stills render.txt; then
+            for s in $(sed -n 's/^at=//p' render.txt); do npx remotion still OwnerGuide out/f_$s.jpg --frame=$(( s * 30 )) --scale=0.5 --jpeg-quality=80; done
+          else
+            npx remotion render OwnerGuide out/AVTOHABR_как_подключить_автосервис.mp4 --codec=h264 --crf=20 --concurrency=4
+          fi
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: out
+          path: out
+          retention-days: 5
