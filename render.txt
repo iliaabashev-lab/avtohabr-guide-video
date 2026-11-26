@@ -1,1 +1,6 @@
-video
+stills
+at=44
+at=63
+at=334
+at=499
+at=566

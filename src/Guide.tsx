@@ -32,7 +32,7 @@ function stepTimeline(s: Scene) {
 // снимок настоящего экрана в рамке браузера; hl — обводка элемента (координаты в пикселях снимка)
 const Shot: React.FC<{ src: string; local: number; span: number; hl: number[] | null; hlLocal: number }> = ({ src, local, span, hl, hlLocal }) => {
   const [w, h] = (SIZES as Record<string, number[]>)[src];
-  const BW = 980, BH = 760;
+  const BW = 1100, BH = 830;
   // по ширине (не больше 1,55×); чуть выше рамки — вписать по высоте; намного выше — медленно ехать вниз
   const kw = Math.min(BW / w, 1.55);
   const k = h * kw > BH && h * kw <= BH * 1.15 ? BH / h : kw;
@@ -72,27 +72,27 @@ const SceneView: React.FC<{ s: Scene; index: number; dur: number }> = ({ s, inde
   const titleY = interpolate(f, [0, FPS * 0.9], [18, 0], { extrapolateRight: "clamp", easing: ease });
   return (
     <AbsoluteFill style={{ opacity: fade(f, dur) }}>
-      <div style={{ position: "absolute", left: 120, top: 150, width: 700 }}>
+      <div style={{ position: "absolute", left: 100, top: 130, width: 530 }}>
         <div style={{ fontSize: 22, color: C.accent, fontWeight: 700, letterSpacing: "0.02em", fontVariantNumeric: "tabular-nums" }}>
           {String(index + 1).padStart(2, "0")} / {SCENES.length} · {s.chapter}
         </div>
-        <div style={{ fontSize: 58, fontWeight: 800, color: C.text, lineHeight: 1, letterSpacing: "-0.035em", marginTop: 18, transform: `translateY(${titleY}px)` }}>{s.title}</div>
-        <div style={{ marginTop: 54, display: "flex", flexDirection: "column", gap: 26 }}>
+        <div style={{ fontSize: 50, fontWeight: 800, color: C.text, lineHeight: 1, letterSpacing: "-0.035em", marginTop: 18, transform: `translateY(${titleY}px)` }}>{s.title}</div>
+        <div style={{ marginTop: 44, display: "flex", flexDirection: "column", gap: 22 }}>
           {tl.map((st, i) => {
-            if (f < st.start || i < active - 2) return null; // на экране текущий шаг и два предыдущих
+            if (f < st.start || i < active - 1) return null; // на экране текущий шаг и один предыдущий
             const a = interpolate(f, [st.start, st.start + FPS * 0.7], [0, 1], { extrapolateRight: "clamp", easing: ease });
             const on = i === active;
             return (
               <div key={i} style={{ display: "flex", gap: 20, opacity: a * (on ? 1 : 0.42), transform: `translateY(${(1 - a) * 14}px)` }}>
                 <div style={{ flex: "0 0 44px", height: 44, borderRadius: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700,
                   background: on ? C.accent : "transparent", border: `1.5px solid ${on ? C.accent : C.dim}`, color: on ? "#fff" : C.dim, fontVariantNumeric: "tabular-nums" }}>{i + 1}</div>
-                <div style={{ fontSize: on ? 31 : 26, lineHeight: 1.45, color: C.text, fontWeight: on ? 600 : 500, maxWidth: 620 }}>{st.t}</div>
+                <div style={{ fontSize: on ? 28 : 22, lineHeight: 1.45, color: C.text, fontWeight: on ? 600 : 500, maxWidth: 466 }}>{st.t}</div>
               </div>
             );
           })}
         </div>
       </div>
-      <div style={{ position: "absolute", left: 860, right: 80, top: 0, bottom: 90, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ position: "absolute", left: 680, right: 40, top: 0, bottom: 80, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Shot key={img} src={img} local={f - imgFrom} span={dur - imgFrom} hl={hl} hlLocal={cur ? f - cur.start : 0} />
       </div>
     </AbsoluteFill>
@@ -103,7 +103,7 @@ const Progress: React.FC<{ starts: number[] }> = ({ starts }) => {
   const f = useCurrentFrame();
   const cur = starts.reduce((a, st, i) => (f >= st ? i : a), -1);
   return (
-    <div style={{ position: "absolute", left: 120, right: 120, bottom: 52, display: "flex", gap: 8 }}>
+    <div style={{ position: "absolute", left: 100, right: 40, bottom: 40, display: "flex", gap: 8 }}>
       {SCENES.map((s, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i < cur ? "rgba(59,130,246,0.55)" : i === cur ? C.accent : "rgba(214,226,240,0.10)" }} />
       ))}
