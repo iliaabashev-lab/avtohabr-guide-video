@@ -93,7 +93,7 @@ const SceneView: React.FC<{ s: Scene; index: number; dur: number }> = ({ s, inde
   const titleY = interpolate(f, [0, FPS * 0.9], [18, 0], { extrapolateRight: "clamp", easing: ease });
   return (
     <AbsoluteFill style={{ opacity: fade(f, dur) }}>
-      <div style={{ position: "absolute", left: 120, top: 110, width: 700 }}>
+      <div style={{ position: "absolute", left: 120, top: 150, width: 700 }}>
         <div style={{ fontSize: 22, color: C.accent, fontWeight: 700, letterSpacing: "0.02em", fontVariantNumeric: "tabular-nums" }}>
           {String(index + 1).padStart(2, "0")} / {SCENES.length} · {s.chapter}
         </div>
