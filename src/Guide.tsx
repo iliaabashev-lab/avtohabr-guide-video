@@ -3,13 +3,14 @@ import { AbsoluteFill, Audio, Img, interpolate, Sequence, staticFile, useCurrent
 import { loadFont } from "@remotion/google-fonts/Manrope";
 import { SCENES, Scene } from "./data";
 import SIZES from "./sizes.json";
+import BOXES from "./boxes.json";
 
 const { fontFamily } = loadFont("normal", { weights: ["500", "600", "700", "800"], subsets: ["cyrillic", "latin"] });
 
 export const FPS = 30;
 const C = {
   bg: "#0e131a", panel: "#151c26", line: "rgba(214,226,240,0.10)", text: "#e6ecf2", dim: "#8d9aab",
-  accent: "#3b82f6", accentSoft: "rgba(59,130,246,0.16)", ok: "#34c38f",
+  accent: "#3b82f6", hl: "#ffb020",
 };
 const ease = Easing.bezier(0.33, 0, 0.2, 1);
 
@@ -23,62 +24,38 @@ export const totalFrames = () => Math.round((OPEN + CLOSE) * FPS) + SCENES.reduc
 const fade = (f: number, dur: number) =>
   Math.min(interpolate(f, [0, FADE * FPS], [0, 1], { extrapolateRight: "clamp" }), interpolate(f, [dur - FADE * FPS, dur], [1, 0], { extrapolateLeft: "clamp" }));
 
-// какой шаг сейчас активен и когда он начался
 function stepTimeline(s: Scene) {
   let at = INTRO * FPS;
   return s.steps.map((st) => { const start = Math.round(at); at += stepSec(st.t) * FPS; return { ...st, start }; });
 }
 
-const Shot: React.FC<{ src: string; local: number; span: number }> = ({ src, local, span }) => {
+// снимок настоящего экрана в рамке браузера; hl — обводка элемента (координаты в пикселях снимка)
+const Shot: React.FC<{ src: string; local: number; span: number; hl: number[] | null; hlLocal: number }> = ({ src, local, span, hl, hlLocal }) => {
   const [w, h] = (SIZES as Record<string, number[]>)[src];
   const BW = 980, BH = 760;
-  // по ширине (не больше 1,55×); чуть выше рамки — вписать по высоте; намного выше — ехать вниз
+  // по ширине (не больше 1,55×); чуть выше рамки — вписать по высоте; намного выше — медленно ехать вниз
   const kw = Math.min(BW / w, 1.55);
   const k = h * kw > BH && h * kw <= BH * 1.15 ? BH / h : kw;
   const dw = w * k, dh = h * k, vis = Math.min(dh, BH);
-  // высокий снимок медленно едет сверху вниз; обычный едва заметно приближается
   const pan = dh > BH ? interpolate(local, [FPS * 1.5, span - FPS], [0, dh - BH], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease }) : 0;
-  const zoom = dh > BH ? 1 : interpolate(local, [0, span], [1, 1.035]);
   const o = interpolate(local, [0, FPS * 0.6], [0, 1], { extrapolateRight: "clamp" });
+  const ho = hl ? interpolate(hlLocal, [FPS * 0.3, FPS * 0.9], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease }) : 0;
+  const hs = 1.06 - 0.06 * ho;
   return (
     <div style={{ width: dw, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.line}`, background: C.panel, boxShadow: "0 30px 80px rgba(0,0,0,0.45)", opacity: o }}>
       <div style={{ height: 34, display: "flex", alignItems: "center", gap: 8, padding: "0 14px", borderBottom: `1px solid ${C.line}` }}>
         {[0, 1, 2].map((i) => <div key={i} style={{ width: 11, height: 11, borderRadius: 6, background: "rgba(214,226,240,0.18)" }} />)}
         <div style={{ marginLeft: 14, fontSize: 15, color: C.dim }}>app.avtohabr.ru</div>
       </div>
-      <div style={{ height: vis, overflow: "hidden" }}>
-        <Img src={staticFile(`img/${src}`)} style={{ width: dw, height: dh, display: "block", transform: `translateY(${-pan}px) scale(${zoom})`, transformOrigin: "50% 30%" }} />
-      </div>
-    </div>
-  );
-};
-
-// сцены без снимка: путь по меню и кнопки, которые загораются по очереди вместе с шагами
-const PathCard: React.FC<{ s: Scene; active: number; local: number }> = ({ s, active, local }) => {
-  const o = interpolate(local, [0, FPS * 0.6], [0, 1], { extrapolateRight: "clamp" });
-  return (
-    <div style={{ width: 900, padding: 48, borderRadius: 18, background: C.panel, border: `1px solid ${C.line}`, opacity: o }}>
-      <div style={{ fontSize: 22, color: C.dim, marginBottom: 18 }}>Где найти</div>
-      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 14, marginBottom: 46 }}>
-        {s.path!.map((p, i) => (
-          <React.Fragment key={p}>
-            {i > 0 && <span style={{ fontSize: 30, color: C.dim }}>›</span>}
-            <span style={{ fontSize: 32, fontWeight: 700, color: C.text, padding: "10px 20px", borderRadius: 10, background: "rgba(214,226,240,0.06)" }}>{p}</span>
-          </React.Fragment>
-        ))}
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {s.buttons!.map((b, i) => {
-          const on = i === Math.min(active, s.buttons!.length - 1) && active >= 0;
-          const done = i < active;
-          return (
-            <div key={b} style={{ display: "flex", alignItems: "center", gap: 18, fontSize: 28, fontWeight: 600, padding: "16px 22px", borderRadius: 12,
-              color: on ? "#fff" : done ? C.text : C.dim, background: on ? C.accent : done ? C.accentSoft : "transparent",
-              border: `1px solid ${on ? C.accent : C.line}`, transition: "none" }}>
-              <span style={{ width: 30, textAlign: "center", color: done && !on ? C.ok : "inherit" }}>{done && !on ? "✓" : i + 1}</span>{b}
-            </div>
-          );
-        })}
+      <div style={{ height: vis, overflow: "hidden", position: "relative" }}>
+        <div style={{ transform: `translateY(${-pan}px)`, position: "relative" }}>
+          <Img src={staticFile(`img/${src}`)} style={{ width: dw, height: dh, display: "block" }} />
+          {hl && (
+            <div style={{ position: "absolute", left: hl[0] * k, top: hl[1] * k, width: hl[2] * k, height: hl[3] * k, borderRadius: 10,
+              border: `3px solid ${C.hl}`, boxShadow: "0 0 0 6px rgba(255,176,32,0.18), 0 0 24px rgba(255,176,32,0.35)",
+              opacity: ho, transform: `scale(${hs})` }} />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -89,7 +66,9 @@ const SceneView: React.FC<{ s: Scene; index: number; dur: number }> = ({ s, inde
   const tl = stepTimeline(s);
   const active = tl.reduce((a, st, i) => (f >= st.start ? i : a), -1);
   let img = s.img, imgFrom = 0;
-  for (let i = 0; i <= active; i++) if (tl[i].img) { img = tl[i].img; imgFrom = tl[i].start; }
+  for (let i = 0; i <= active; i++) if (tl[i].img) { img = tl[i].img!; imgFrom = tl[i].start; }
+  const cur = active >= 0 ? tl[active] : null;
+  const hl = cur?.hl ? ((BOXES as Record<string, number[]>)[img] ?? null) : null;
   const titleY = interpolate(f, [0, FPS * 0.9], [18, 0], { extrapolateRight: "clamp", easing: ease });
   return (
     <AbsoluteFill style={{ opacity: fade(f, dur) }}>
@@ -102,19 +81,19 @@ const SceneView: React.FC<{ s: Scene; index: number; dur: number }> = ({ s, inde
           {tl.map((st, i) => {
             if (f < st.start || i < active - 2) return null; // на экране текущий шаг и два предыдущих
             const a = interpolate(f, [st.start, st.start + FPS * 0.7], [0, 1], { extrapolateRight: "clamp", easing: ease });
-            const cur = i === active;
+            const on = i === active;
             return (
-              <div key={i} style={{ display: "flex", gap: 20, opacity: a * (cur ? 1 : 0.42), transform: `translateY(${(1 - a) * 14}px)` }}>
+              <div key={i} style={{ display: "flex", gap: 20, opacity: a * (on ? 1 : 0.42), transform: `translateY(${(1 - a) * 14}px)` }}>
                 <div style={{ flex: "0 0 44px", height: 44, borderRadius: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700,
-                  background: cur ? C.accent : "transparent", border: `1.5px solid ${cur ? C.accent : C.dim}`, color: cur ? "#fff" : C.dim, fontVariantNumeric: "tabular-nums" }}>{i + 1}</div>
-                <div style={{ fontSize: cur ? 31 : 26, lineHeight: 1.45, color: C.text, fontWeight: cur ? 600 : 500, maxWidth: 620 }}>{st.t}</div>
+                  background: on ? C.accent : "transparent", border: `1.5px solid ${on ? C.accent : C.dim}`, color: on ? "#fff" : C.dim, fontVariantNumeric: "tabular-nums" }}>{i + 1}</div>
+                <div style={{ fontSize: on ? 31 : 26, lineHeight: 1.45, color: C.text, fontWeight: on ? 600 : 500, maxWidth: 620 }}>{st.t}</div>
               </div>
             );
           })}
         </div>
       </div>
       <div style={{ position: "absolute", left: 860, right: 80, top: 0, bottom: 90, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        {img ? <Shot key={img} src={img} local={f - imgFrom} span={dur - imgFrom} /> : <PathCard s={s} active={active} local={f} />}
+        <Shot key={img} src={img} local={f - imgFrom} span={dur - imgFrom} hl={hl} hlLocal={cur ? f - cur.start : 0} />
       </div>
     </AbsoluteFill>
   );
